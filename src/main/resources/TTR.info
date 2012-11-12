@@ -1,0 +1,9 @@
+tt.reports.prib.TTPrib;Товар;Прибыль
+<html>
+    <head>
+    </head>
+    <body>
+        <h1>Товар <b>Прибыль<b></h1>
+        Расчет прибыли.
+    </body>
+</html>

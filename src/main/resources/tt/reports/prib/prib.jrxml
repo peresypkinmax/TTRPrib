@@ -1,0 +1,526 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="prib" language="groovy" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="33f3859d-b246-4c82-a272-f664742b3823">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="REPORT_PARAMETRS_TEXT" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[SELECT mainsql.*,
+lastsellprice.last_sellprice,
+lastincomeprice.last_incomeprice,
+incomeprice.incomeprice * mainsql.totalqty AS total_incomeprice
+FROM
+(SELECT
+  i2.scod,
+  i2.name,
+  i2.products_groups_id,
+  --i2.id products_id,
+  pg.name as groupname,
+  sum(i.to_cass) total_sellprice,
+  sum(i2.quantity) totalqty
+
+    FROM orders o
+      LEFT OUTER JOIN(SELECT i2.orders_id, i2.actual_price as to_credit,i2.quantity, p.name,p.scod, p.products_groups_id,p.id FROM items i2
+                        LEFT OUTER JOIN (SELECT p.* FROM products p)p ON (i2.products_id = p.id)
+		     ) i2 ON (o.id = i2.orders_id ),
+      products_groups pg,
+      (SELECT i1.orders_id, sum(i1.actual_price * i1.quantity) as to_cass FROM items i1 GROUP BY i1.orders_id) i
+	 WHERE o.id = i.orders_id
+	   AND o.order_date between '01.10.2012' AND '01.12.2013'
+	   AND o.operation_type_code='psl'
+	   AND i2.products_groups_id=pg.id
+GROUP BY i2.name,i2.scod,i2.products_groups_id,pg.name,i2.id
+)mainsql
+LEFT JOIN(
+SELECT * FROM(
+SELECT order_date od,scod, actual_price AS last_sellprice
+   FROM orders o
+     LEFT OUTER JOIN(SELECT i.*,p.id as pid,p.scod FROM items i, products p where i.products_id = p.id)i ON (o.id=i.orders_id)
+        WHERE
+          o.order_date BETWEEN '01.10.2012' AND '01.12.2013'
+          AND o.operation_type_code='psl'
+)aa
+WHERE
+scod||od IN (SELECT scod||od AS vv FROM (SELECT max(order_date) od,scod
+                  FROM orders o
+                  LEFT OUTER JOIN(SELECT i.*,p.id as pid,p.scod FROM items i, products p WHERE i.products_id = p.id)i ON (o.id=i.orders_id)
+                     WHERE o.order_date between '01.10.2012' AND '01.12.2013'
+                       AND o.operation_type_code='psl'
+                   GROUP BY  scod)a
+            )
+               )lastsellprice ON (mainsql.scod = lastsellprice.scod)
+-------LAST INCOME PRICE
+LEFT JOIN(SELECT * FROM(
+SELECT order_date od,scod, actual_price AS last_incomeprice
+   FROM orders o
+     LEFT OUTER JOIN(SELECT i.*,p.id as pid,p.scod FROM items i, products p where i.products_id = p.id)i ON (o.id=i.orders_id)
+        WHERE
+          o.order_date BETWEEN '01.10.2012' AND '01.12.2013'
+          AND o.operation_type_code='ppl'
+)aa
+WHERE
+scod||od IN (SELECT scod||od AS vv FROM (SELECT max(order_date) od,scod
+                  FROM orders o
+                  LEFT OUTER JOIN(SELECT i.*,p.id as pid,p.scod FROM items i, products p WHERE i.products_id = p.id)i ON (o.id=i.orders_id)
+                     WHERE o.order_date between '01.10.2012' AND '01.12.2013'
+                       AND o.operation_type_code='ppl'
+                   GROUP BY  scod)a )
+               )lastincomeprice ON (mainsql.scod = lastincomeprice.scod)
+--------- INCOME PRICE
+LEFT JOIN(SELECT i2.scod , sum(i2.to_credit) incomeprice
+		  FROM orders o
+                       LEFT OUTER JOIN(SELECT i2.orders_id, i2.actual_price AS to_credit,i2.quantity, p.name,p.scod, p.products_groups_id,p.id FROM items i2
+                                       LEFT OUTER JOIN (SELECT p.* FROM products p)p ON (i2.products_id = p.id)
+		                      )i2 ON (o.id = i2.orders_id )
+	          WHERE
+	            o.order_date between '01.10.2012' AND '01.12.2013'
+	            AND o.operation_type_code='ppl'
+GROUP BY i2.scod)incomeprice ON (mainsql.scod = incomeprice.scod)
+ORDER BY mainsql.products_groups_id,mainsql.scod]]>
+	</queryString>
+	<field name="scod" class="java.lang.String"/>
+	<field name="name" class="java.lang.String"/>
+	<field name="products_groups_id" class="java.lang.Integer"/>
+	<field name="groupname" class="java.lang.String"/>
+	<field name="total_sellprice" class="java.math.BigDecimal"/>
+	<field name="totalqty" class="java.math.BigDecimal"/>
+	<field name="last_sellprice" class="java.math.BigDecimal"/>
+	<field name="last_incomeprice" class="java.math.BigDecimal"/>
+	<field name="total_incomeprice" class="java.math.BigDecimal"/>
+	<variable name="totalqty_summ" class="java.math.BigDecimal" resetType="Group" resetGroup="groupname" calculation="Sum">
+		<variableExpression><![CDATA[$F{totalqty}]]></variableExpression>
+	</variable>
+	<variable name="totalsellprice_summ" class="java.math.BigDecimal" resetType="Group" resetGroup="groupname" calculation="Sum">
+		<variableExpression><![CDATA[$F{total_sellprice}]]></variableExpression>
+	</variable>
+	<variable name="totalincomeprice_summ" class="java.math.BigDecimal" resetType="Group" resetGroup="groupname" calculation="Sum">
+		<variableExpression><![CDATA[$F{total_incomeprice}]]></variableExpression>
+	</variable>
+	<variable name="totalqty_summ2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{totalqty}]]></variableExpression>
+	</variable>
+	<variable name="totalsellprice_summ2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{total_sellprice}]]></variableExpression>
+	</variable>
+	<variable name="totalincomeprice_summ2" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{total_incomeprice}]]></variableExpression>
+	</variable>
+	<group name="groupname">
+		<groupExpression><![CDATA[$F{groupname}]]></groupExpression>
+		<groupHeader>
+			<band height="77">
+				<textField>
+					<reportElement uuid="544cb265-d03a-441e-a75c-c4aa9289a236" mode="Opaque" x="0" y="0" width="555" height="16" backcolor="#CCCCCC"/>
+					<box leftPadding="2" rightPadding="2">
+						<pen lineWidth="0.25"/>
+						<topPen lineWidth="0.25"/>
+						<leftPen lineWidth="0.25"/>
+						<bottomPen lineWidth="0.25"/>
+						<rightPen lineWidth="0.25"/>
+					</box>
+					<textElement verticalAlignment="Middle">
+						<font size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$F{groupname}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement uuid="97257200-3eea-459b-8cc5-4f765936a906" mode="Opaque" x="0" y="16" width="134" height="61" backcolor="#FFFFFF"/>
+					<box leftPadding="2" rightPadding="2">
+						<topPen lineWidth="0.25" lineStyle="Solid"/>
+						<leftPen lineWidth="0.25" lineStyle="Solid"/>
+						<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+						<rightPen lineWidth="0.25" lineStyle="Solid"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle" markup="none">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Наименование товара]]></text>
+				</staticText>
+				<staticText>
+					<reportElement uuid="97257200-3eea-459b-8cc5-4f765936a906" mode="Opaque" x="134" y="16" width="70" height="61" backcolor="#FFFFFF"/>
+					<box leftPadding="2" rightPadding="2">
+						<topPen lineWidth="0.25" lineStyle="Solid"/>
+						<leftPen lineWidth="0.25" lineStyle="Solid"/>
+						<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+						<rightPen lineWidth="0.25" lineStyle="Solid"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Цена реализации]]></text>
+				</staticText>
+				<staticText>
+					<reportElement uuid="97257200-3eea-459b-8cc5-4f765936a906" mode="Opaque" x="204" y="16" width="70" height="61" backcolor="#FFFFFF"/>
+					<box leftPadding="2" rightPadding="2">
+						<topPen lineWidth="0.25" lineStyle="Solid"/>
+						<leftPen lineWidth="0.25" lineStyle="Solid"/>
+						<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+						<rightPen lineWidth="0.25" lineStyle="Solid"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Цена последнего прихода]]></text>
+				</staticText>
+				<staticText>
+					<reportElement uuid="97257200-3eea-459b-8cc5-4f765936a906" mode="Opaque" x="274" y="16" width="85" height="61" backcolor="#FFFFFF"/>
+					<box leftPadding="2" rightPadding="2">
+						<topPen lineWidth="0.25" lineStyle="Solid"/>
+						<leftPen lineWidth="0.25" lineStyle="Solid"/>
+						<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+						<rightPen lineWidth="0.25" lineStyle="Solid"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Кол-во реализованного товара]]></text>
+				</staticText>
+				<staticText>
+					<reportElement uuid="97257200-3eea-459b-8cc5-4f765936a906" mode="Opaque" x="359" y="16" width="57" height="61" backcolor="#FFFFFF"/>
+					<box leftPadding="2" rightPadding="2">
+						<topPen lineWidth="0.25" lineStyle="Solid"/>
+						<leftPen lineWidth="0.25" lineStyle="Solid"/>
+						<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+						<rightPen lineWidth="0.25" lineStyle="Solid"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Сумма продажи]]></text>
+				</staticText>
+				<staticText>
+					<reportElement uuid="97257200-3eea-459b-8cc5-4f765936a906" mode="Opaque" x="416" y="16" width="67" height="61" backcolor="#FFFFFF"/>
+					<box leftPadding="2" rightPadding="2">
+						<topPen lineWidth="0.25" lineStyle="Solid"/>
+						<leftPen lineWidth="0.25" lineStyle="Solid"/>
+						<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+						<rightPen lineWidth="0.25" lineStyle="Solid"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Сумма закупки]]></text>
+				</staticText>
+				<staticText>
+					<reportElement uuid="97257200-3eea-459b-8cc5-4f765936a906" mode="Opaque" x="483" y="16" width="72" height="61" backcolor="#FFFFFF"/>
+					<box leftPadding="2" rightPadding="2">
+						<topPen lineWidth="0.25" lineStyle="Solid"/>
+						<leftPen lineWidth="0.25" lineStyle="Solid"/>
+						<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+						<rightPen lineWidth="0.25" lineStyle="Solid"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Прибыль]]></text>
+				</staticText>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="17">
+				<textField pattern="#,##0;-#,##0">
+					<reportElement uuid="38f64058-26fc-470e-bb82-752a50a7c2d9" mode="Opaque" x="274" y="0" width="85" height="17" backcolor="#FFFFCC"/>
+					<box leftPadding="2" rightPadding="2">
+						<pen lineWidth="0.25"/>
+						<topPen lineWidth="0.25"/>
+						<leftPen lineWidth="0.25"/>
+						<bottomPen lineWidth="0.25"/>
+						<rightPen lineWidth="0.25"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="7" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{totalqty_summ}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement uuid="9983f282-f027-4828-a837-286c68cfccd8" x="0" y="1" width="274" height="16"/>
+					<box leftPadding="2" rightPadding="2"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font size="8" isBold="true"/>
+					</textElement>
+					<text><![CDATA[Всего по группе:]]></text>
+				</staticText>
+				<textField pattern="#,##0.00;-#,##0.00">
+					<reportElement uuid="38f64058-26fc-470e-bb82-752a50a7c2d9" mode="Opaque" x="359" y="0" width="57" height="17" backcolor="#FFFFCC"/>
+					<box leftPadding="2" rightPadding="2">
+						<pen lineWidth="0.25"/>
+						<topPen lineWidth="0.25"/>
+						<leftPen lineWidth="0.25"/>
+						<bottomPen lineWidth="0.25"/>
+						<rightPen lineWidth="0.25"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="7" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{totalsellprice_summ}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00;-#,##0.00">
+					<reportElement uuid="38f64058-26fc-470e-bb82-752a50a7c2d9" mode="Opaque" x="416" y="0" width="67" height="17" backcolor="#FFFFCC"/>
+					<box leftPadding="2" rightPadding="2">
+						<pen lineWidth="0.25"/>
+						<topPen lineWidth="0.25"/>
+						<leftPen lineWidth="0.25"/>
+						<bottomPen lineWidth="0.25"/>
+						<rightPen lineWidth="0.25"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="7" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{totalincomeprice_summ}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00">
+					<reportElement uuid="38f64058-26fc-470e-bb82-752a50a7c2d9" mode="Opaque" x="483" y="0" width="72" height="17" backcolor="#FFFFCC"/>
+					<box leftPadding="2" rightPadding="2">
+						<pen lineWidth="0.25"/>
+						<topPen lineWidth="0.25"/>
+						<leftPen lineWidth="0.25"/>
+						<bottomPen lineWidth="0.25"/>
+						<rightPen lineWidth="0.25"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="7" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{totalsellprice_summ}-$V{totalincomeprice_summ}]]></textFieldExpression>
+				</textField>
+				<break>
+					<reportElement uuid="1cca842d-b185-4369-a0c7-70936ec49ada" x="0" y="2" width="100" height="1"/>
+				</break>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<title>
+		<band height="45" splitType="Stretch">
+			<staticText>
+				<reportElement uuid="ebac42c9-1577-4524-be7b-ce06aca31456" x="0" y="0" width="169" height="22"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement verticalAlignment="Middle">
+					<font size="14" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Отчет по прибыли]]></text>
+			</staticText>
+			<staticText>
+				<reportElement uuid="ced96a6f-5421-4427-b81b-570524e4276c" x="0" y="22" width="97" height="22"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement verticalAlignment="Middle">
+					<font size="12" isBold="true"/>
+				</textElement>
+				<text><![CDATA[за период]]></text>
+			</staticText>
+			<textField isStretchWithOverflow="true">
+				<reportElement uuid="a23ec653-e633-45e4-9234-c3e9c72c3cfe" stretchType="RelativeToBandHeight" mode="Opaque" x="97" y="22" width="208" height="22"/>
+				<box leftPadding="2" rightPadding="2"/>
+				<textElement verticalAlignment="Middle">
+					<font size="12" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{REPORT_PARAMETRS_TEXT}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement uuid="02818258-9ee3-4680-be40-640a0bf2eb82" x="334" y="25" width="82" height="20"/>
+				<textElement verticalAlignment="Middle"/>
+				<text><![CDATA[по состоянию на:]]></text>
+			</staticText>
+			<textField>
+				<reportElement uuid="e05041d6-65b1-44e9-9be8-e88a5c7c1766" x="416" y="25" width="100" height="20"/>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<pageHeader>
+		<band height="10" splitType="Stretch"/>
+	</pageHeader>
+	<columnHeader>
+		<band height="9" splitType="Stretch"/>
+	</columnHeader>
+	<detail>
+		<band height="16" splitType="Stretch">
+			<textField isStretchWithOverflow="true">
+				<reportElement uuid="a23ec653-e633-45e4-9234-c3e9c72c3cfe" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="0" width="134" height="16"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.25" lineStyle="Solid"/>
+					<leftPen lineWidth="0.25" lineStyle="Solid"/>
+					<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+					<rightPen lineWidth="0.25" lineStyle="Solid"/>
+				</box>
+				<textElement verticalAlignment="Middle">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{name}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" pattern="#,##0;-#,##0">
+				<reportElement uuid="a23ec653-e633-45e4-9234-c3e9c72c3cfe" stretchType="RelativeToBandHeight" mode="Opaque" x="274" y="0" width="85" height="16"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.25" lineStyle="Solid"/>
+					<leftPen lineWidth="0.25" lineStyle="Solid"/>
+					<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+					<rightPen lineWidth="0.25" lineStyle="Solid"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{totalqty}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement uuid="d03deae6-42c7-4b15-bd7d-9678c5f8d96b" x="359" y="0" width="57" height="16"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.25"/>
+					<topPen lineWidth="0.25"/>
+					<leftPen lineWidth="0.25"/>
+					<bottomPen lineWidth="0.25"/>
+					<rightPen lineWidth="0.25"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isStrikeThrough="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{total_sellprice}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" pattern="#,##0;-#,##0">
+				<reportElement uuid="a23ec653-e633-45e4-9234-c3e9c72c3cfe" stretchType="RelativeToBandHeight" mode="Opaque" x="134" y="0" width="70" height="16"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.25" lineStyle="Solid"/>
+					<leftPen lineWidth="0.25" lineStyle="Solid"/>
+					<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+					<rightPen lineWidth="0.25" lineStyle="Solid"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{last_sellprice}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" pattern="#,##0;-#,##0">
+				<reportElement uuid="a23ec653-e633-45e4-9234-c3e9c72c3cfe" stretchType="RelativeToBandHeight" mode="Opaque" x="204" y="0" width="70" height="16"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.25" lineStyle="Solid"/>
+					<leftPen lineWidth="0.25" lineStyle="Solid"/>
+					<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+					<rightPen lineWidth="0.25" lineStyle="Solid"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{last_incomeprice}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement uuid="d03deae6-42c7-4b15-bd7d-9678c5f8d96b" x="416" y="0" width="67" height="16"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.25"/>
+					<topPen lineWidth="0.25"/>
+					<leftPen lineWidth="0.25"/>
+					<bottomPen lineWidth="0.25"/>
+					<rightPen lineWidth="0.25"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isStrikeThrough="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{total_incomeprice}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement uuid="ab121e5e-231c-4c95-b43a-7cb24b9e86c8" x="483" y="0" width="72" height="16"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.25"/>
+					<topPen lineWidth="0.25"/>
+					<leftPen lineWidth="0.25"/>
+					<bottomPen lineWidth="0.25"/>
+					<rightPen lineWidth="0.25"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{total_sellprice}-$F{total_incomeprice}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<columnFooter>
+		<band height="8" splitType="Stretch"/>
+	</columnFooter>
+	<pageFooter>
+		<band height="13" splitType="Stretch">
+			<textField>
+				<reportElement uuid="4e25492a-8691-4f4b-9ec8-48d12555a581" mode="Opaque" x="0" y="0" width="515" height="13" backcolor="#FFFFFF"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA["Страница "+$V{PAGE_NUMBER}+" из"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement uuid="35e1d62c-e0b1-4d88-9906-26a598642b69" mode="Opaque" x="515" y="0" width="40" height="13" backcolor="#FFFFFF"/>
+				<textElement/>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="17" splitType="Stretch">
+			<textField isStretchWithOverflow="true" pattern="#,##0;-#,##0">
+				<reportElement uuid="a23ec653-e633-45e4-9234-c3e9c72c3cfe" stretchType="RelativeToBandHeight" mode="Opaque" x="274" y="0" width="85" height="17" backcolor="#CCCCCC"/>
+				<box leftPadding="2" rightPadding="2">
+					<topPen lineWidth="0.25" lineStyle="Solid"/>
+					<leftPen lineWidth="0.25" lineStyle="Solid"/>
+					<bottomPen lineWidth="0.25" lineStyle="Solid"/>
+					<rightPen lineWidth="0.25" lineStyle="Solid"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{totalqty_summ2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement uuid="d03deae6-42c7-4b15-bd7d-9678c5f8d96b" mode="Opaque" x="359" y="0" width="57" height="17" backcolor="#CCCCCC"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.25"/>
+					<topPen lineWidth="0.25"/>
+					<leftPen lineWidth="0.25"/>
+					<bottomPen lineWidth="0.25"/>
+					<rightPen lineWidth="0.25"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="10" isBold="true" isStrikeThrough="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{totalsellprice_summ2}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement uuid="d03deae6-42c7-4b15-bd7d-9678c5f8d96b" mode="Opaque" x="416" y="0" width="67" height="17" backcolor="#CCCCCC"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.25"/>
+					<topPen lineWidth="0.25"/>
+					<leftPen lineWidth="0.25"/>
+					<bottomPen lineWidth="0.25"/>
+					<rightPen lineWidth="0.25"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="10" isBold="true" isStrikeThrough="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{totalincomeprice_summ2}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement uuid="9983f282-f027-4828-a837-286c68cfccd8" mode="Opaque" x="0" y="0" width="274" height="17" backcolor="#CCCCCC"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.25"/>
+					<topPen lineWidth="0.25"/>
+					<leftPen lineWidth="0.25"/>
+					<bottomPen lineWidth="0.25"/>
+					<rightPen lineWidth="0.25"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="10" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Итого по всем группам:]]></text>
+			</staticText>
+			<textField pattern="#,##0.00;-#,##0.00">
+				<reportElement uuid="38f64058-26fc-470e-bb82-752a50a7c2d9" mode="Opaque" x="483" y="0" width="72" height="17" backcolor="#CCCCCC"/>
+				<box leftPadding="2" rightPadding="2">
+					<pen lineWidth="0.25"/>
+					<topPen lineWidth="0.25"/>
+					<leftPen lineWidth="0.25"/>
+					<bottomPen lineWidth="0.25"/>
+					<rightPen lineWidth="0.25"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="10" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{totalsellprice_summ2}-$V{totalincomeprice_summ2}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>
